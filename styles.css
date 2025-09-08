@@ -1,0 +1,36 @@
+ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    background-color: #333333;
+    display: flex;
+}
+
+ul li a {
+    display: block;
+    color: white;
+    padding: 14px 16px;
+    text-decoration: none;
+}
+
+ul li a:hover {
+    background-color: #111111;
+}
+
+.navbar {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    background-color: #3498db;
+    padding: 15px 0;
+    color: #fff;
+    font-family: Arial, sans-serif;
+    gap: 10px;
+    /* atstarpe starp elementiem */
+}
+
+.navbar p {
+    margin: 0;
+    font-size: 1.1em;
+}
