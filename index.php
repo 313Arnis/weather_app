@@ -10,54 +10,26 @@ function h($v)
 {
     return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
 }
-
-// helper to read nested paths like "city.sunrise" or "forecast.0.sunrise"
-function getp($arr, $path, $def = null)
-{
-    if (!is_array($arr) || !$path) return $def;
-    $parts = is_array($path) ? $path : explode('.', $path);
-    foreach ($parts as $p) {
-        if (is_array($arr) && array_key_exists($p, $arr)) $arr = $arr[$p];
-        else return $def;
-    }
-    return $arr;
-}
-function format_time($val, $tz = 0)
-{
-    if ($val === null) return '—';
-    if (is_numeric($val)) return date('h:i A', intval($val) + intval($tz));
-    $t = strtotime((string)$val);
-    return $t ? date('h:i A', $t + intval($tz)) : h($val);
-}
-
-// inicializācija un mainīgie, lai nebūtu erroru
 $city_input = isset($_GET['city']) && trim($_GET['city']) !== '' ? $_GET['city'] : 'cesis,latvia';
 $data = fetch_api($city_input);
-$city = is_array($data) && isset($data['city']) ? $data['city'] : ['name' => $city_input, 'country' => ''];
-$list = is_array($data) && isset($data['list']) ? $data['list'] : [];
-$current = !empty($list) ? $list[0] : (is_array($data) && isset($data['current']) ? $data['current'] : []);
-$tz = isset($city['timezone']) ? $city['timezone'] : 0;
-
+$city = $data['city'] ?? ['name' => $city_input, 'country' => ''];
+$list = $data['list'] ?? [];
+$current = $list[0] ?? ($data['current'] ?? []);
+$tz = $city['timezone'] ?? 0;
+$cur_temp = $current['temp']['day'] ?? $current['temp'] ?? ($current['main']['temp'] ?? null);
+$cur_desc = $current['weather'][0]['description'] ?? ($current['description'] ?? '');
+$cur_icon = $current['weather'][0]['icon'] ?? '';
+$cur_feels = $current['feels_like']['day'] ?? ($current['main']['feels_like'] ?? null);
+$cur_wind = $current['speed'] ?? ($current['wind']['speed'] ?? null);
+$cur_humidity = $current['humidity'] ?? ($current['main']['humidity'] ?? null);
+$cur_pressure = $current['pressure'] ?? ($current['main']['pressure'] ?? null);
+$visibility = $current['visibility'] ?? null;
+$aqi = $data['air_quality'] ?? ($data['aqi'] ?? null);
 function icon_url($icon)
 {
     return $icon ? "https://openweathermap.org/img/wn/{$icon}@2x.png" : '';
 }
-function fmt_date_ts($ts, $tz = 0)
-{
-    if (!$ts) return '—';
-    return date('d.m.', intval($ts) + intval($tz));
-}
-
-// droša lauku nolasīšana ar getp
-$cur_temp = getp($current, 'temp.day', getp($current, 'temp', getp($current, 'main.temp', null)));
-$cur_desc = getp($current, 'weather.0.description', getp($current, 'description', ''));
-$cur_icon = getp($current, 'weather.0.icon', '');
-$cur_feels = getp($current, 'feels_like.day', getp($current, 'main.feels_like', null));
-$cur_wind = getp($current, 'speed', getp($current, 'wind.speed', null));
-$cur_humidity = getp($current, 'humidity', getp($current, 'main.humidity', null));
-$cur_pressure = getp($current, 'pressure', getp($current, 'main.pressure', null));
-$visibility = getp($current, 'visibility', getp($data, 'visibility', null));
-$aqi = getp($data, 'air_quality', getp($data, 'aqi', null));
+$wind_kmh = is_null($cur_wind) ? null : round($cur_wind * 3.6, 1);
 ?>
 <!doctype html>
 <html lang="lv">
@@ -82,16 +54,16 @@ $aqi = getp($data, 'air_quality', getp($data, 'aqi', null));
 
         <section class="current-card card">
             <div class="current-left">
-                <?php if ($cur_icon): ?>
+                <?php if($cur_icon): ?>
                 <img src="<?php echo h(icon_url($cur_icon)); ?>" alt="" class="weather-icon">
                 <?php else: ?>
                 <div class="weather-icon placeholder">☁️</div>
                 <?php endif; ?>
                 <div class="temp-block">
                     <div class="label">Pašreiz</div>
-                    <div class="temp"><?php echo is_null($cur_temp) ? '—' : round($cur_temp, 1) . "°C"; ?></div>
+                    <div class="temp"><?php echo is_null($cur_temp) ? '—' : round($cur_temp,1) . "°C"; ?></div>
                     <div class="small-desc"><?php echo h(ucfirst($cur_desc)); ?></div>
-                    <div class="feels">Jūtas kā <?php echo is_null($cur_feels) ? '—' : round($cur_feels, 1) . "°C"; ?>
+                    <div class="feels">Jūtas kā <?php echo is_null($cur_feels) ? '—' : round($cur_feels,1) . "°C"; ?>
                     </div>
                 </div>
             </div>
@@ -107,11 +79,12 @@ $aqi = getp($data, 'air_quality', getp($data, 'aqi', null));
         </section>
 
         <section class="stats-grid">
+
+
             <div class="stat-card card">
                 <div class="stat-icon">💨</div>
                 <div class="stat-title">Vējš</div>
-                <div class="stat-value"><?php echo is_null($cur_wind) ? '—' : h(round($cur_wind * 3.6, 1)) . ' km/h'; ?>
-                </div>
+                <div class="stat-value"><?php echo is_null($wind_kmh) ? '—' : h($wind_kmh) . ' km/h'; ?></div>
                 <div class="stat-sub">Avots: API</div>
             </div>
 
@@ -122,36 +95,49 @@ $aqi = getp($data, 'air_quality', getp($data, 'aqi', null));
                 <div class="stat-sub">Avots: API</div>
             </div>
 
+
+
             <div class="stat-card card">
                 <div class="stat-icon">🧭</div>
                 <div class="stat-title">Spiediens</div>
                 <div class="stat-value"><?php echo is_null($cur_pressure) ? '—' : h($cur_pressure) . ' hPa'; ?></div>
                 <div class="stat-sub">Avots: API</div>
             </div>
-        </section> <!-- stats-grid -->
+
+            <div class="stat-card card">
+                <div class="stat-icon">🔁</div>
+                <div class="stat-title">Spiediens (alt)</div>
+                <div class="stat-value"><?php echo is_null($cur_pressure) ? '—' : h($cur_pressure); ?></div>
+                <div class="stat-sub">Avots: API</div>
+            </div>
+        </section>
 
         <section class="sunmoon card">
-            <h2>Saules kopsavilkums</h2>
+            <h2>Saules stāvoklis</h2>
 
             <div class="sunmoon-grid">
+
+
                 <div class="sun-row">
                     <?php
-                    $sunrise = getp($data, 'city.sunrise', null) ?? getp($data, 'sun.sunrise', null) ?? getp($current, 'sunrise', null);
-                    $sunset  = getp($data, 'city.sunset', null)  ?? getp($data, 'sun.sunset', null)  ?? getp($current, 'sunset', null);
+                        $sunrise = $data['city']['sunrise'] ?? $data['sun']['sunrise'] ?? $current['sunrise'] ?? null;
+                        $sunset  = $data['city']['sunset'] ?? $data['sun']['sunset'] ?? $current['sunset'] ?? null;
                     ?>
                     <div class="sun-item">
                         <div class="sm-ico">🌅</div>
                         <div class="sm-title">Saullēkts</div>
-                        <div class="sm-time"><?php echo format_time($sunrise, $tz); ?></div>
+                        <div class="sm-time"><?php echo $sunrise ? date('h:i A', $sunrise + $tz) : '—'; ?></div>
                         <div class="sun-arc"><span class="arc-fill" style="width:40%"></span></div>
                     </div>
 
                     <div class="sun-item">
                         <div class="sm-ico">🌇</div>
                         <div class="sm-title">Saulriets</div>
-                        <div class="sm-time"><?php echo format_time($sunset, $tz); ?></div>
+                        <div class="sm-time"><?php echo $sunset ? date('h:i A', $sunset + $tz) : '—'; ?></div>
                     </div>
                 </div>
+
+                <div class="moon-row" style="display:none"></div>
             </div>
         </section>
 
@@ -159,24 +145,22 @@ $aqi = getp($data, 'air_quality', getp($data, 'aqi', null));
             <h2>Prognoze</h2>
             <div class="forecast-grid">
                 <?php if (!empty($list)): foreach ($list as $day):
-                        $dt = $day['dt'] ?? ($day['date'] ?? null);
-                        $dateStr = $dt ? fmt_date_ts($dt, $tz) : ($day['date'] ?? '—');
-                        $tmin = $day['temp']['min'] ?? $day['main']['temp_min'] ?? null;
-                        $tmax = $day['temp']['max'] ?? $day['main']['temp_max'] ?? null;
-                        $desc = $day['weather'][0]['description'] ?? ($day['description'] ?? '');
-                        $icon = $day['weather'][0]['icon'] ?? '';
+                    $dt = $day['dt'] ?? $day['date'] ?? null;
+                    $dateStr = $dt ? date('d.m.', $dt + $tz) : ($day['date'] ?? '—');
+                    $tmin = $day['temp']['min'] ?? $day['main']['temp_min'] ?? null;
+                    $tmax = $day['temp']['max'] ?? $day['main']['temp_max'] ?? null;
+                    $desc = $day['weather'][0]['description'] ?? $day['description'] ?? '';
+                    $icon = $day['weather'][0]['icon'] ?? '';
                 ?>
                 <div class="day-card">
                     <div class="day-date"><?php echo h($dateStr); ?></div>
-                    <?php if ($icon): ?>
-                    <img src="<?php echo h(icon_url($icon)); ?>" alt="" class="day-icon">
-                    <?php endif; ?>
-                    <div class="day-temps"><?php echo is_null($tmax) ? '—' : round($tmax) . '°'; ?> /
-                        <?php echo is_null($tmin) ? '—' : round($tmin) . '°'; ?></div>
+                    <?php if ($icon): ?><img src="<?php echo h(icon_url($icon)); ?>" alt=""
+                        class="day-icon"><?php endif; ?>
+                    <div class="day-temps"><?php echo is_null($tmax)?'—':round($tmax).'°'; ?> /
+                        <?php echo is_null($tmin)?'—':round($tmin).'°'; ?></div>
                     <div class="day-desc"><?php echo h(ucfirst($desc)); ?></div>
                 </div>
-                <?php endforeach;
-                else: ?>
+                <?php endforeach; else: ?>
                 <p>Prognozes dati nav pieejami.</p>
                 <?php endif; ?>
             </div>
