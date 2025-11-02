@@ -45,11 +45,16 @@ $wind_kmh = is_null($cur_wind) ? null : round($cur_wind * 3.6, 1);
     <main class="wrap">
         <header class="topbar">
             <div class="brand">VTDT Sky</div>
+
             <form class="search" method="get">
                 <input type="text" name="city" placeholder="Pilsēta, valsts (piem. cesis,latvia)"
                     value="<?php echo h($city_input); ?>">
                 <button type="submit">Meklēt</button>
             </form>
+
+            <!-- theme toggle -->
+            <button id="theme-toggle" class="theme-btn" type="button" aria-pressed="false"
+                title="Toggle dark / light">🌙</button>
         </header>
 
         <section class="current-card card">
@@ -168,6 +173,35 @@ $wind_kmh = is_null($cur_wind) ? null : round($cur_wind * 3.6, 1);
 
         <footer class="footer">VTDT Sky © <?php echo date('Y'); ?> — Dati no emo.lv</footer>
     </main>
+
+    <script>
+    (function() {
+        const KEY = 'vtdt-theme';
+        const btn = document.getElementById('theme-toggle');
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const saved = localStorage.getItem(KEY);
+        const initial = saved || (prefersDark ? 'dark' : 'light');
+
+        function applyTheme(t) {
+            if (t === 'dark') document.documentElement.classList.add('dark');
+            else document.documentElement.classList.remove('dark');
+            if (btn) {
+                btn.textContent = t === 'dark' ? '☀️' : '🌙';
+                btn.setAttribute('aria-pressed', t === 'dark');
+            }
+        }
+
+        applyTheme(initial);
+
+        if (btn) {
+            btn.addEventListener('click', function() {
+                const next = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+                localStorage.setItem(KEY, next);
+                applyTheme(next);
+            });
+        }
+    })();
+    </script>
 </body>
 
 </html>
