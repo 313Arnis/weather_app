@@ -29,6 +29,32 @@ function icon_url($icon)
 {
     return $icon ? "https://openweathermap.org/img/wn/{$icon}@2x.png" : '';
 }
+
+// ADDED: format_time helper — formatē laiku izmantojot vai nu sekundēs dotu nobīdi vai laika joslas nosaukumu
+function format_time($timestamp = null, $tz = null, $format = 'H:i, d.m.Y')
+{
+    $timestamp = $timestamp === null ? time() : (int)$timestamp;
+
+    // ja $tz ir skaitlis (sekundes), izmanto gmdate ar nobīdi
+    if (is_numeric($tz)) {
+        return gmdate($format, $timestamp + (int)$tz);
+    }
+
+    // ja $tz ir laika joslas nosaukums, izmanto DateTime
+    if ($tz && class_exists('DateTime') && class_exists('DateTimeZone')) {
+        try {
+            $dt = new DateTime("@$timestamp");
+            $dt->setTimezone(new DateTimeZone($tz));
+            return $dt->format($format);
+        } catch (Exception $e) {
+            // fallback uz gmdate zemāk
+        }
+    }
+
+    // noklusējuma fallback: UTC
+    return gmdate($format, $timestamp);
+}
+
 $wind_kmh = is_null($cur_wind) ? null : round($cur_wind * 3.6, 1);
 ?>
 <!doctype html>
@@ -59,16 +85,16 @@ $wind_kmh = is_null($cur_wind) ? null : round($cur_wind * 3.6, 1);
 
         <section class="current-card card">
             <div class="current-left">
-                <?php if($cur_icon): ?>
+                <?php if ($cur_icon): ?>
                 <img src="<?php echo h(icon_url($cur_icon)); ?>" alt="" class="weather-icon">
                 <?php else: ?>
                 <div class="weather-icon placeholder">☁️</div>
                 <?php endif; ?>
                 <div class="temp-block">
                     <div class="label">Pašreiz</div>
-                    <div class="temp"><?php echo is_null($cur_temp) ? '—' : round($cur_temp,1) . "°C"; ?></div>
+                    <div class="temp"><?php echo is_null($cur_temp) ? '—' : round($cur_temp, 1) . "°C"; ?></div>
                     <div class="small-desc"><?php echo h(ucfirst($cur_desc)); ?></div>
-                    <div class="feels">Jūtas kā <?php echo is_null($cur_feels) ? '—' : round($cur_feels,1) . "°C"; ?>
+                    <div class="feels">Jūtas kā <?php echo is_null($cur_feels) ? '—' : round($cur_feels, 1) . "°C"; ?>
                     </div>
                 </div>
             </div>
@@ -77,7 +103,7 @@ $wind_kmh = is_null($cur_wind) ? null : round($cur_wind * 3.6, 1);
                 <div class="loc">
                     <div class="city"><?php echo h($city['name'] ?? $city_input); ?>,
                         <?php echo h($city['country'] ?? ''); ?></div>
-                    <div class="local-time">Lokālais laiks: <?php echo date('H:i, d.m.Y'); ?></div>
+                    <div class="local-time">Lokālais laiks: <?php echo format_time(null, $tz, 'H:i, d.m.Y'); ?></div>
                 </div>
                 <div class="wind-dir">Pašreizējā vēja virziens: <?php echo $cur_wind ? h('SSE') : '—'; ?></div>
             </div>
@@ -90,14 +116,14 @@ $wind_kmh = is_null($cur_wind) ? null : round($cur_wind * 3.6, 1);
                 <div class="stat-icon">💨</div>
                 <div class="stat-title">Vējš</div>
                 <div class="stat-value"><?php echo is_null($wind_kmh) ? '—' : h($wind_kmh) . ' km/h'; ?></div>
-                <div class="stat-sub">Avots: API</div>
+
             </div>
 
             <div class="stat-card card">
                 <div class="stat-icon">💧</div>
                 <div class="stat-title">Mitrums</div>
                 <div class="stat-value"><?php echo is_null($cur_humidity) ? '—' : h($cur_humidity) . '%'; ?></div>
-                <div class="stat-sub">Avots: API</div>
+
             </div>
 
 
@@ -106,14 +132,14 @@ $wind_kmh = is_null($cur_wind) ? null : round($cur_wind * 3.6, 1);
                 <div class="stat-icon">🧭</div>
                 <div class="stat-title">Spiediens</div>
                 <div class="stat-value"><?php echo is_null($cur_pressure) ? '—' : h($cur_pressure) . ' hPa'; ?></div>
-                <div class="stat-sub">Avots: API</div>
+
             </div>
 
             <div class="stat-card card">
                 <div class="stat-icon">🔁</div>
                 <div class="stat-title">Spiediens (alt)</div>
                 <div class="stat-value"><?php echo is_null($cur_pressure) ? '—' : h($cur_pressure); ?></div>
-                <div class="stat-sub">Avots: API</div>
+
             </div>
         </section>
 
@@ -125,20 +151,20 @@ $wind_kmh = is_null($cur_wind) ? null : round($cur_wind * 3.6, 1);
 
                 <div class="sun-row">
                     <?php
-                        $sunrise = $data['city']['sunrise'] ?? $data['sun']['sunrise'] ?? $current['sunrise'] ?? null;
-                        $sunset  = $data['city']['sunset'] ?? $data['sun']['sunset'] ?? $current['sunset'] ?? null;
+                    $sunrise = $data['city']['sunrise'] ?? $data['sun']['sunrise'] ?? $current['sunrise'] ?? null;
+                    $sunset  = $data['city']['sunset'] ?? $data['sun']['sunset'] ?? $current['sunset'] ?? null;
                     ?>
                     <div class="sun-item">
                         <div class="sm-ico">🌅</div>
                         <div class="sm-title">Saullēkts</div>
-                        <div class="sm-time"><?php echo $sunrise ? date('h:i A', $sunrise + $tz) : '—'; ?></div>
+                        <div class="sm-time"><?php echo $sunrise ? format_time($sunrise, $tz, 'H:i') : '—'; ?></div>
                         <div class="sun-arc"><span class="arc-fill" style="width:40%"></span></div>
                     </div>
 
                     <div class="sun-item">
                         <div class="sm-ico">🌇</div>
                         <div class="sm-title">Saulriets</div>
-                        <div class="sm-time"><?php echo $sunset ? date('h:i A', $sunset + $tz) : '—'; ?></div>
+                        <div class="sm-time"><?php echo $sunset ? format_time($sunset, $tz, 'H:i') : '—'; ?></div>
                     </div>
                 </div>
 
@@ -150,22 +176,23 @@ $wind_kmh = is_null($cur_wind) ? null : round($cur_wind * 3.6, 1);
             <h2>Prognoze</h2>
             <div class="forecast-grid">
                 <?php if (!empty($list)): foreach ($list as $day):
-                    $dt = $day['dt'] ?? $day['date'] ?? null;
-                    $dateStr = $dt ? date('d.m.', $dt + $tz) : ($day['date'] ?? '—');
-                    $tmin = $day['temp']['min'] ?? $day['main']['temp_min'] ?? null;
-                    $tmax = $day['temp']['max'] ?? $day['main']['temp_max'] ?? null;
-                    $desc = $day['weather'][0]['description'] ?? $day['description'] ?? '';
-                    $icon = $day['weather'][0]['icon'] ?? '';
+                        $dt = $day['dt'] ?? $day['date'] ?? null;
+                        $dateStr = $dt ? format_time($dt, $tz, 'd.m.') : ($day['date'] ?? '—');
+                        $tmin = $day['temp']['min'] ?? $day['main']['temp_min'] ?? null;
+                        $tmax = $day['temp']['max'] ?? $day['main']['temp_max'] ?? null;
+                        $desc = $day['weather'][0]['description'] ?? $day['description'] ?? '';
+                        $icon = $day['weather'][0]['icon'] ?? '';
                 ?>
                 <div class="day-card">
                     <div class="day-date"><?php echo h($dateStr); ?></div>
                     <?php if ($icon): ?><img src="<?php echo h(icon_url($icon)); ?>" alt=""
                         class="day-icon"><?php endif; ?>
-                    <div class="day-temps"><?php echo is_null($tmax)?'—':round($tmax).'°'; ?> /
-                        <?php echo is_null($tmin)?'—':round($tmin).'°'; ?></div>
+                    <div class="day-temps"><?php echo is_null($tmax) ? '—' : round($tmax) . '°'; ?> /
+                        <?php echo is_null($tmin) ? '—' : round($tmin) . '°'; ?></div>
                     <div class="day-desc"><?php echo h(ucfirst($desc)); ?></div>
                 </div>
-                <?php endforeach; else: ?>
+                <?php endforeach;
+                else: ?>
                 <p>Prognozes dati nav pieejami.</p>
                 <?php endif; ?>
             </div>
